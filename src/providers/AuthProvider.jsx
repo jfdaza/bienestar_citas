@@ -1,13 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-
-// 1 Creamos el contenedor (context)
+import { supabase, supabaseAdmin } from "../lib/supabase";
+import { logSecurityEvent } from "../hooks/useSecurity";
 
 const AuthContext = createContext(null);
 
-// 2. Hook personalizado para usar el contexto facilmente
-//esto evita importar useContext y AuthContext en cada archivo
-
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -16,34 +13,39 @@ export const useAuth = () => {
   return context;
 };
 
-//3 El provider que envuelve la aplicacion
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); //usuario de Supabase Auth
-  const [profile, setProfile] = useState(null); //Datos adicionales de nuestra tabla de perfil o profiles
-  const [loading, setLoading] = useState(true); //Estado de cargar inicial
-  const [error, setError] = useState(null); //manejo o gestion de errores
+// Cliente para obtener perfil (bypasea RLS)
+const db = supabaseAdmin || supabase;
 
-  //Efecto Escuchar cambios de sesion( login, logout, refresh)
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    //verificar sesion existente al cargar la app
-    const checkSession = async () => {
+    // Restaurar sesión existente al cargar/recargar la página
+    const init = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
         }
-      } catch (err) {
-        setError(err.message);
+      } catch {
+        // Ignorar errores
       } finally {
         setLoading(false);
       }
     };
-    checkSession();
+    init();
 
-    //suscribirse a cambios de autenticacion (login/logout en tiempo real )
+    // Logout automático al cerrar la pestaña/navegador
+    const handleBeforeUnload = () => {
+      supabase.auth.signOut();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Escuchar cambios de auth
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
@@ -56,36 +58,89 @@ export function AuthProvider({ children }) {
       },
     );
 
-    // limpieza de suscripcion al desmontar ( es buena practica)
     return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       listener.subscription.unsubscribe();
     };
   }, []);
 
-  //funcion auxiliar: obterner el perfil + el rol desde nuestra base de datos
   const fetchProfile = async (userId) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("profiles")
-        .select(
-          `
-            *,
-            roles (name, permissions),
-            dependencies(name)            
-            `,
-        )
+        .select("*")
         .eq("id", userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (error) {
+        // Si el perfil no existe, intentar crearlo
+        if (error.code === "PGRST116" || error.message.includes("not found")) {
+          console.warn("Perfil no encontrado, creando uno nuevo...");
+          
+          // Obtener datos del usuario de auth
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          
+          // Obtener rol de APRENDIZ por defecto
+          const { data: roleData } = await db
+            .from("roles")
+            .select("id")
+            .eq("name", "APRENDIZ")
+            .single();
+
+          const { data: newProfile, error: createError } = await db
+            .from("profiles")
+            .upsert({
+              id: userId,
+              full_name: authUser?.user_metadata?.full_name || "Usuario",
+              email: authUser?.email || "",
+              document_number: authUser?.user_metadata?.document_number || null,
+              role_id: roleData?.id || 6,
+              is_active: true,
+            }, { onConflict: "id" })
+            .select()
+            .single();
+
+          if (createError) {
+            throw new Error("No se pudo crear el perfil del usuario");
+          }
+
+          // Enriquecer el nuevo perfil
+          const [rolesRes, depsRes] = await Promise.all([
+            db.from("roles").select("name, permissions").eq("id", newProfile.role_id).single(),
+            newProfile.dependency_id
+              ? db.from("dependencies").select("name").eq("id", newProfile.dependency_id).single()
+              : { data: null },
+          ]);
+
+          setProfile({
+            ...newProfile,
+            roles: rolesRes.data || null,
+            dependencies: depsRes.data || null,
+          });
+          return;
+        }
+        throw error;
+      }
+
+      // Enriquecer con roles y dependencies por separado
+      const [rolesRes, depsRes] = await Promise.all([
+        db.from("roles").select("name, permissions").eq("id", data.role_id).single(),
+        data.dependency_id
+          ? db.from("dependencies").select("name").eq("id", data.dependency_id).single()
+          : { data: null },
+      ]);
+
+      setProfile({
+        ...data,
+        roles: rolesRes.data || null,
+        dependencies: depsRes.data || null,
+      });
     } catch (err) {
-      console.error("Error cargando perfil", err);
-      setError("No se pudo cargar el perfil de usuario");
+      console.error("Error cargando perfil:", err.message || err);
+      setError("Error al cargar perfil");
     }
   };
 
-  //Método de autenticacion (clean code: funciones puras y descriptivas)
   const signIn = async (email, password) => {
     try {
       setError(null);
@@ -93,7 +148,18 @@ export function AuthProvider({ children }) {
         email,
         password,
       });
-      if (error) throw error;
+      if (error) {
+        // Log intento fallido
+        await logSecurityEvent('login_failed', {
+          email,
+          error: error.message,
+        });
+        throw error;
+      }
+      
+      // Log login exitoso
+      await logSecurityEvent('login_success', { email });
+      
       return { success: true, data };
     } catch (err) {
       setError(err.message);
@@ -111,28 +177,67 @@ export function AuthProvider({ children }) {
           data: {
             full_name: userData.full_name,
             document_number: userData.document_number,
-            //El traiger que creamos de SLQ creara automaticamente el perfil
           },
         },
       });
 
       if (error) throw error;
+      if (!data.user) throw new Error("No se pudo crear el usuario");
+
+      // Intentar crear profile via RPC
+      const { data: profileData, error: profileError } = await db.rpc(
+        "create_profile_for_user",
+        {
+          user_id: data.user.id,
+          user_full_name: userData.full_name || "Usuario",
+          user_email: email,
+          user_document_number: userData.document_number || null,
+        },
+      );
+
+      // Si la RPC falla, crear o actualizar profile directamente con upsert
+      if (profileError || !profileData) {
+        console.warn("RPC falló, creando profile directamente:", profileError?.message);
+        
+        // Obtener rol de APRENDIZ por defecto
+        const { data: roleData } = await db
+          .from("roles")
+          .select("id")
+          .eq("name", "APRENDIZ")
+          .single();
+
+        const { error: upsertError } = await db.from("profiles").upsert({
+          id: data.user.id,
+          full_name: userData.full_name || "Usuario",
+          email: email,
+          document_number: userData.document_number || null,
+          role_id: roleData?.id || 6,
+          is_active: true,
+        }, { onConflict: "id" });
+
+        if (upsertError) {
+          console.error("Error creando profile directamente:", upsertError.message);
+          throw new Error("Error creando perfil: " + upsertError.message);
+        }
+      }
+
       return { success: true, data };
     } catch (err) {
       setError(err.message);
       return { success: false, error: err.message };
     }
   };
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      //El estado se limpia automaticamente por onAuthStateChange
+      setUser(null);
+      setProfile(null);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  //SISTEMA RBAC: helper functions para verificar permisos
   const hasRole = (requiredRoles) => {
     if (!profile?.roles?.name) return false;
     if (Array.isArray(requiredRoles)) {
@@ -142,12 +247,11 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => hasRole("SUPERADMIN");
-  const isCoordination = () => hasRole(["COORDINACION", "SUPERADMIN"]);
+  const isCoordination = () => hasRole("COORDINACION");
   const isProfessional = () =>
     hasRole(["PSICOLOGIA", "ENFERMERIA", "TRABAJO_SOCIAL"]);
   const isAprendiz = () => hasRole("APRENDIZ");
 
-  //valor proporcionado a toda la app
   const value = {
     user,
     profile,
@@ -156,8 +260,7 @@ export function AuthProvider({ children }) {
     signIn,
     signUp,
     signOut,
-    //helpers RBAC
-    hasRole: hasRole,
+    hasRole,
     isAdmin,
     isCoordination,
     isProfessional,

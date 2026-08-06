@@ -7,6 +7,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Pencil,
+  Lock,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
@@ -17,21 +19,23 @@ const STATUS_CONFIG = {
   no_show: { label: "No asistió", color: "#6b7280", icon: XCircle },
 };
 
-export function AppointmentCard({ appointment, onCancel, isAprendiz }) {
+export function AppointmentCard({ appointment, onCancel, onEdit, isAprendiz }) {
   const {
     dependencies,
     scheduled_date,
     scheduled_time,
     status,
     reason,
+    notes,
     profiles,
   } = appointment;
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
+  const isLocked = status === "completed" || status === "no_show" || status === "cancelled";
 
   return (
     <div
-      className="appointment-card"
+      className={`appointment-card ${isLocked ? "appointment-locked-card" : ""}`}
       style={{ borderLeft: `4px solid ${dependencies?.color || "#ccc"}` }}
     >
       <div className="card-header">
@@ -44,6 +48,7 @@ export function AppointmentCard({ appointment, onCancel, isAprendiz }) {
         <div className="status-badge" style={{ color: config.color }}>
           <Icon size={16} />
           <span>{config.label}</span>
+          {isLocked && <Lock size={14} className="lock-icon" />}
         </div>
       </div>
 
@@ -66,13 +71,34 @@ export function AppointmentCard({ appointment, onCancel, isAprendiz }) {
             <span>{profiles.full_name}</span>
           </div>
         )}
+        {notes && (
+          <div className="appointment-notes">
+            <strong>Nota:</strong> {notes}
+          </div>
+        )}
       </div>
 
-      {isAprendiz && status === "pending" && (
+      {isAprendiz && (status === "pending" || status === "confirmed") && (
         <div className="card-actions">
-          <button onClick={onCancel} className="btn-danger">
-            Cancelar Cita
+          <button onClick={onEdit} className="btn-secondary">
+            <Pencil size={14} />
+            Modificar
           </button>
+          {status === "pending" && (
+            <button onClick={onCancel} className="btn-danger">
+              Cancelar Cita
+            </button>
+          )}
+        </div>
+      )}
+
+      {isAprendiz && isLocked && status !== "cancelled" && (
+        <div className="card-locked-message">
+          <Lock size={14} />
+          <span>
+            {status === "completed" && "Cita atendida - No puedes modificarla"}
+            {status === "no_show" && "Marcada como inasistencia"}
+          </span>
         </div>
       )}
     </div>

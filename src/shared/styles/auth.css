@@ -1,43 +1,87 @@
+/* Auth Page */
 .auth-page {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 1.5rem;
-  background-color: var(--sena-gray);
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 420px;
   background-color: var(--sena-white);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.auth-card h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--sena-dark);
-  margin-bottom: 0.5rem;
+.auth-container {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.auth-subtitle {
-  color: #6b7280;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
+/* Logo SENA */
+.auth-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
 }
 
-.auth-error {
-  background-color: #fee2e2;
-  color: #b91c1c;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+.auth-logo img,
+.auth-logo svg {
+  width: 80px;
+  height: 80px;
   margin-bottom: 1rem;
 }
 
+.auth-logo-text {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.auth-logo-text span {
+  color: var(--sena-green);
+}
+
+/* Auth Card */
+.auth-card {
+  width: 100%;
+  background-color: var(--sena-white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-card h1 {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.auth-subtitle {
+  color: var(--gray-500);
+  font-size: var(--text-small);
+  margin-bottom: 1.5rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Auth Error */
+.auth-error {
+  background-color: #FEF2F2;
+  color: var(--color-error);
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #FECACA;
+}
+
+/* Auth Form */
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -45,17 +89,15 @@
 }
 
 .auth-form .btn-primary {
-  justify-content: center;
-  width: 100%;
-  padding: 0.75rem;
   margin-top: 0.5rem;
 }
 
+/* Auth Footer */
 .auth-footer {
   margin-top: 1.5rem;
   text-align: center;
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: var(--text-small);
+  color: var(--gray-500);
 }
 
 .auth-link {
@@ -66,4 +108,209 @@
 
 .auth-link:hover {
   text-decoration: underline;
+}
+
+/* Info Box */
+.auth-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--sena-green-light);
+  border-radius: var(--radius-md);
+  margin-top: 1.5rem;
+}
+
+.auth-info-box svg {
+  flex-shrink: 0;
+  color: var(--sena-green);
+}
+
+.auth-info-box p {
+  font-size: var(--text-small);
+  color: var(--gray-700);
+  line-height: 1.5;
+}
+
+.auth-info-box strong {
+  display: block;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+/* Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--gray-500);
+  font-size: var(--text-small);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--gray-300);
+}
+
+/* Social Buttons */
+.auth-social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem;
+  background-color: white;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-social-btn:hover {
+  background-color: var(--gray-100);
+  border-color: var(--gray-500);
+}
+
+.auth-social-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+/* Terms */
+.auth-terms {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: var(--text-caption);
+  color: var(--gray-500);
+}
+
+.auth-terms a {
+  color: var(--sena-green);
+  text-decoration: underline;
+}
+
+/* Progress Bar */
+.auth-progress {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.auth-progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: var(--gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.auth-progress-fill {
+  height: 100%;
+  background-color: var(--sena-green);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+.auth-progress-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: var(--text-caption);
+  color: var(--gray-500);
+}
+
+/* Step Indicator */
+.auth-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.auth-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-small);
+  font-weight: 600;
+  background-color: var(--gray-200);
+  color: var(--gray-500);
+}
+
+.auth-step.active .auth-step-circle {
+  background-color: var(--sena-green);
+  color: white;
+}
+
+.auth-step.completed .auth-step-circle {
+  background-color: var(--sena-green);
+  color: white;
+}
+
+.auth-step-label {
+  font-size: var(--text-caption);
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.auth-step.active .auth-step-label {
+  color: var(--sena-green);
+}
+
+.auth-step-line {
+  width: 40px;
+  height: 2px;
+  background-color: var(--gray-200);
+  margin-bottom: 1.5rem;
+}
+
+.auth-step-line.completed {
+  background-color: var(--sena-green);
+}
+
+/* Privacy Box */
+.auth-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--sena-green-light);
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+}
+
+.auth-privacy svg {
+  flex-shrink: 0;
+  color: var(--sena-green);
+}
+
+.auth-privacy p {
+  font-size: var(--text-small);
+  color: var(--gray-700);
+  line-height: 1.5;
+}
+
+.auth-privacy strong {
+  display: block;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
 }

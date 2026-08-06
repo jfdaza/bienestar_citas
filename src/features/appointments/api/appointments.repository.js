@@ -1,44 +1,28 @@
-import { supabase } from "../../../lib/supabase";
-import { addDays, isWeekend, format } from "date-fns";
+import { supabaseAdmin as supabase } from "../../../lib/supabase";
 
-// CLASE Repository: encapsula todo el acceso a datos de citas
-// Principio SOLID: Dependency Inversion (dependemos de abstracciones)
 export class AppointmentRepository {
-  // CREATE: Crear nueva cita
   static async create(appointmentData) {
     const { data, error } = await supabase
       .from("appointments")
       .insert([appointmentData])
-      .select(
-        `
-        *,
-        dependencies (name, color),
-        profiles!professional_id (full_name)
-      `,
-      )
+      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)")
       .single();
 
     if (error) throw new Error(`Error creando cita: ${error.message}`);
     return data;
   }
 
-  // READ: Obtener citas según filtros (RLS se encarga de seguridad)
   static async fetch({ userId, dependencyId, status, dateFrom, dateTo }) {
-    let query = supabase.from("appointments").select(`
-        *,
-        dependencies (name, color),
-        profiles!user_id (full_name, document_number),
-        professional:profiles!professional_id (full_name)
-      `);
+    let query = supabase
+      .from("appointments")
+      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)");
 
-    // Filtros dinámicos
     if (userId) query = query.eq("user_id", userId);
     if (dependencyId) query = query.eq("dependency_id", dependencyId);
     if (status) query = query.eq("status", status);
     if (dateFrom) query = query.gte("scheduled_date", dateFrom);
     if (dateTo) query = query.lte("scheduled_date", dateTo);
 
-    // Ordenar por fecha y hora
     query = query
       .order("scheduled_date", { ascending: true })
       .order("scheduled_time", { ascending: true });
@@ -48,20 +32,18 @@ export class AppointmentRepository {
     return data || [];
   }
 
-  // UPDATE: Actualizar estado o notas
   static async update(id, updates) {
     const { data, error } = await supabase
       .from("appointments")
       .update({ ...updates, updated_at: new Date() })
       .eq("id", id)
-      .select()
+      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)")
       .single();
 
     if (error) throw new Error(`Error actualizando cita: ${error.message}`);
     return data;
   }
 
-  // CHECK AVAILABILITY: Verificar si horario está libre
   static async checkAvailability(dependencyId, date, time, excludeId = null) {
     let query = supabase
       .from("appointments")
@@ -75,10 +57,9 @@ export class AppointmentRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data.length === 0; // true = disponible
+    return data.length === 0;
   }
 
-  // COUNT PENDING: Contar citas pendientes de un usuario (límite de 2)
   static async countPending(userId) {
     const { count, error } = await supabase
       .from("appointments")

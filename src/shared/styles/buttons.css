@@ -1,98 +1,206 @@
+/* Botón Primario - Verde SENA */
 .btn-primary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  padding: 0.875rem 1.5rem;
   background-color: var(--sena-green);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-body);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-primary:hover {
-  background-color: #2d8600;
+  transition: all 0.2s ease;
+  width: 100%;
 }
 
+.btn-primary:hover {
+  background-color: var(--sena-green-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background-color: var(--gray-300);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Botón Secundario - Outline */
 .btn-secondary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
-  background-color: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: 0.875rem 1.5rem;
+  background-color: transparent;
+  color: var(--sena-green);
+  border: 2px solid var(--sena-green);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-body);
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-secondary:hover {
-  background-color: #f9fafb;
+  transition: all 0.2s ease;
 }
 
+.btn-secondary:hover {
+  background-color: var(--sena-green-light);
+}
+
+/* Botón de Éxito */
 .btn-success {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
-  background-color: #22c55e;
+  padding: 0.75rem 1.25rem;
+  background-color: var(--color-success);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-success:hover {
-  background-color: #16a34a;
+  transition: all 0.2s ease;
 }
 
+.btn-success:hover {
+  background-color: #16A34A;
+}
+
+/* Botón de Peligro */
 .btn-danger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  padding: 0.75rem 1.25rem;
+  background-color: transparent;
+  color: var(--color-error);
+  border: 2px solid var(--color-error);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
+.btn-danger:hover {
+  background-color: #FEF2F2;
+}
+
+/* Botón de Texto */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  color: var(--sena-green);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* Botón de Icono */
 .btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
-  background: none;
-  border: 1px solid #e5e7eb;
-  border-radius: var(--radius-sm);
-  color: #6b7280;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-icon:hover {
-  background-color: #f3f4f6;
-}
-
-.btn-link {
+  padding: 0.5rem;
   background: none;
   border: none;
-  color: var(--sena-green);
-  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background-color: var(--gray-100);
+  color: var(--gray-700);
+}
+
+/* Botón Fantasma */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--gray-700);
+  font-size: var(--text-small);
   font-weight: 500;
   cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
+  transition: all 0.2s ease;
 }
-.btn-link:hover {
-  color: #2d8600;
+
+.btn-ghost:hover {
+  background-color: var(--gray-100);
+}
+
+/* Botón pequeño */
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-small);
+  border-radius: var(--radius-md);
+}
+
+/* Botón de filtro */
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-full);
+  background: white;
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  border-color: var(--sena-green);
+  color: var(--sena-green);
+}
+
+.filter-btn.active {
+  background: var(--sena-green);
+  color: white;
+  border-color: var(--sena-green);
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.3);
 }
