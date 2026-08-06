@@ -22,4 +22,4 @@ export const supabaseAdmin = serviceRoleKey
         headers: { "x-supabase-admin": "true" },
       },
     })
-  : null;
+  : supabase;
