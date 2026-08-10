@@ -1,6 +1,9 @@
 import { supabaseAdmin as supabase } from "../../../lib/supabase";
 
 let tablesAvailable = null;
+let joinsAvailable = null;
+
+const SELECT_WITH_JOINS = "*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)";
 
 async function checkTables() {
   if (tablesAvailable !== null) return tablesAvailable;
@@ -13,18 +16,58 @@ async function checkTables() {
   return tablesAvailable;
 }
 
+async function checkJoins() {
+  if (joinsAvailable !== null) return joinsAvailable;
+  try {
+    const { error } = await supabase.from("appointments").select(SELECT_WITH_JOINS).limit(1);
+    joinsAvailable = !error;
+  } catch {
+    joinsAvailable = false;
+  }
+  return joinsAvailable;
+}
+
+async function safeSelect(query) {
+  const useJoins = await checkJoins();
+  if (useJoins) {
+    const { data, error } = await query.select(SELECT_WITH_JOINS);
+    if (error) {
+      joinsAvailable = false;
+      const { data: fallback } = await query.select("*");
+      return fallback || [];
+    }
+    return data || [];
+  }
+  const { data } = await query.select("*");
+  return data || [];
+}
+
 export class AppointmentRepository {
   static async create(appointmentData) {
     const available = await checkTables();
     if (!available) throw new Error("La tabla de citas no esta disponible");
 
+    const useJoins = await checkJoins();
+    const selectClause = useJoins ? SELECT_WITH_JOINS : "*";
+
     const { data, error } = await supabase
       .from("appointments")
       .insert([appointmentData])
-      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)")
+      .select(selectClause)
       .single();
 
-    if (error) throw new Error(`Error creando cita: ${error.message}`);
+    if (error) {
+      if (useJoins && (error.message.includes("relation") || error.message.includes("foreign"))) {
+        joinsAvailable = false;
+        const { data: fallback } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("id", data?.id)
+          .single();
+        return fallback || { ...appointmentData, id: data?.id };
+      }
+      throw new Error(`Error creando cita: ${error.message}`);
+    }
     return data;
   }
 
@@ -32,9 +75,7 @@ export class AppointmentRepository {
     const available = await checkTables();
     if (!available) return [];
 
-    let query = supabase
-      .from("appointments")
-      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)");
+    let query = supabase.from("appointments");
 
     if (userId) query = query.eq("user_id", userId);
     if (dependencyId) query = query.eq("dependency_id", dependencyId);
@@ -46,33 +87,36 @@ export class AppointmentRepository {
       .order("scheduled_date", { ascending: true })
       .order("scheduled_time", { ascending: true });
 
-    const { data, error } = await query;
-    if (error) {
-      // Si el error es por joins inexistentes, intentar sin joins
-      if (error.code === "42P01" || error.message.includes("relation") || error.message.includes("foreign")) {
-        const simple = await supabase
-          .from("appointments")
-          .select("*")
-          .order("scheduled_date", { ascending: true });
-        return simple.data || [];
-      }
-      throw new Error(`Error fetching citas: ${error.message}`);
-    }
-    return data || [];
+    const data = await safeSelect(query);
+    return data;
   }
 
   static async update(id, updates) {
     const available = await checkTables();
     if (!available) throw new Error("La tabla de citas no esta disponible");
 
+    const useJoins = await checkJoins();
+    const selectClause = useJoins ? SELECT_WITH_JOINS : "*";
+
     const { data, error } = await supabase
       .from("appointments")
       .update({ ...updates, updated_at: new Date() })
       .eq("id", id)
-      .select("*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)")
+      .select(selectClause)
       .single();
 
-    if (error) throw new Error(`Error actualizando cita: ${error.message}`);
+    if (error) {
+      if (useJoins && (error.message.includes("relation") || error.message.includes("foreign"))) {
+        joinsAvailable = false;
+        const { data: fallback } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("id", id)
+          .single();
+        return fallback || { id, ...updates };
+      }
+      throw new Error(`Error actualizando cita: ${error.message}`);
+    }
     return data;
   }
 
