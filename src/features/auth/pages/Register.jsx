@@ -142,7 +142,7 @@ export default function Register() {
       const exists = await checkDuplicates();
 
       if (exists) {
-        await logSecurityEvent('register_duplicate', { email: formData.email });
+        logSecurityEvent('register_duplicate', { email: formData.email }).catch(() => {});
         toast.error(
           "El correo o número de documento ya están registrados",
           { duration: 4000 },
@@ -158,11 +158,11 @@ export default function Register() {
       });
 
       if (result.success) {
-        await logSecurityEvent('register_success', { email: formData.email });
+        logSecurityEvent('register_success', { email: formData.email }).catch(() => {});
         toast.success("¡Registro exitoso! Ya puedes iniciar sesión.");
         navigate("/login");
       } else {
-        await logSecurityEvent('register_failed', { email: formData.email, error: result.error });
+        logSecurityEvent('register_failed', { email: formData.email, error: result.error }).catch(() => {});
         const msg = result.error || "Error al registrar usuario";
         if (
           msg.includes("429") ||

@@ -84,13 +84,20 @@ export function hasRole(user: AuthUser, roles: string[]): boolean {
   return roles.includes(user.role_name);
 }
 
+// Headers CORS comunes
+export const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+};
+
 // Respuesta de error
 export function errorResponse(message: string, status: number = 400): Response {
   return new Response(
     JSON.stringify({ error: message }),
     {
       status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     }
   );
 }
@@ -101,7 +108,7 @@ export function successResponse(data: unknown, status: number = 200): Response {
     JSON.stringify(data),
     {
       status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     }
   );
 }

@@ -1,82 +1,96 @@
 import { supabaseAdmin as supabase } from '../../../lib/supabase';
 import { AdminUsersAPI, AdminConfigAPI, checkEdgeFunctionsAvailable } from '../../../lib/edgeFunctions';
 
-// Flag para saber si las Edge Functions están disponibles
 let edgeFunctionsAvailable = null;
+let profilesTableAvailable = null;
 
-// Función auxiliar (no es un hook)
 async function shouldUseEdgeFunctions() {
     if (edgeFunctionsAvailable === null) {
-        edgeFunctionsAvailable = await checkEdgeFunctionsAvailable();
+        try {
+            edgeFunctionsAvailable = await checkEdgeFunctionsAvailable();
+        } catch {
+            edgeFunctionsAvailable = false;
+        }
     }
     return edgeFunctionsAvailable;
 }
 
+async function hasProfilesTable() {
+    if (profilesTableAvailable !== null) return profilesTableAvailable;
+    try {
+        const { error } = await supabase.from('profiles').select('id').limit(1);
+        profilesTableAvailable = !error || error.code !== '42P01';
+    } catch {
+        profilesTableAvailable = false;
+    }
+    return profilesTableAvailable;
+}
+
 export class AdminRepository {
 
-    static async getUsers({ role, status, search, page = 1, limit = 20 }) {
-        // Intentar usar Edge Functions primero
+    static async getUsers({ role, status, search, page = 1, limit: userLimit = 20 }) {
+        const available = await hasProfilesTable();
+        if (!available) return { users: [], total: 0, page, totalPages: 0 };
+
         if (await shouldUseEdgeFunctions()) {
             try {
-                const result = await AdminUsersAPI.list({ page, limit, search, role });
+                const result = await AdminUsersAPI.list({ page, limit: userLimit, search, role });
                 return result;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
-        // Fallback: consulta directa con supabaseAdmin
-        let query = supabase
-            .from('profiles')
-            .select('*', { count: 'exact' });
+        try {
+            let query = supabase.from('profiles').select('*', { count: 'exact' });
+            if (status !== undefined) query = query.eq('is_active', status);
+            if (search) {
+                query = query.or(`full_name.ilike.%${search}%, document_number.ilike.%${search}%`);
+            }
 
-        if (status !== undefined) query = query.eq('is_active', status);
-        if (search) {
-            query = query.or(`full_name.ilike.%${search}%, document_number.ilike.%${search}%`);
+            const from = (page - 1) * limit;
+            const to = from + limit - 1;
+            const { data, error, count } = await query.range(from, to);
+            if (error) return { users: [], total: 0, page, totalPages: 0 };
+
+            let roleMap = {};
+            let depMap = {};
+            try {
+                const { data: roles } = await supabase.from('roles').select('id, name, description');
+                const { data: deps } = await supabase.from('dependencies').select('id, name');
+                roles?.forEach(r => { roleMap[r.id] = r; });
+                deps?.forEach(d => { depMap[d.id] = d; });
+            } catch {
+                // Tablas roles/dependencies no existen
+            }
+
+            const enriched = data.map(u => ({
+                ...u,
+                roles: roleMap[u.role_id] || null,
+                dependencies: depMap[u.dependency_id] || null,
+            }));
+
+            let filtered = enriched;
+            if (role) {
+                filtered = enriched.filter(u => u.roles?.name === role);
+            }
+
+            return { users: filtered, total: count, page, totalPages: Math.ceil(count / limit) };
+        } catch {
+            return { users: [], total: 0, page, totalPages: 0 };
         }
-
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
-        const { data, error, count } = await query.range(from, to);
-        if (error) throw new Error(`Error fetching users: ${error.message}`);
-
-        // Enriquecer con roles y dependencies por separado
-        const { data: roles } = await supabase.from('roles').select('id, name, description');
-        const { data: deps } = await supabase.from('dependencies').select('id, name');
-
-        const roleMap = {};
-        roles?.forEach(r => { roleMap[r.id] = r; });
-        const depMap = {};
-        deps?.forEach(d => { depMap[d.id] = d; });
-
-        const enriched = data.map(u => ({
-            ...u,
-            roles: roleMap[u.role_id] || null,
-            dependencies: depMap[u.dependency_id] || null,
-        }));
-
-        // Filtrar por rol si se especifica
-        let filtered = enriched;
-        if (role) {
-            filtered = enriched.filter(u => u.roles?.name === role);
-        }
-
-        return { users: filtered, total: count, page, totalPages: Math.ceil(count / limit) };
     };
 
     static async updateUser(userId, updates, adminId) {
-        // Intentar usar Edge Functions primero
         if (await shouldUseEdgeFunctions()) {
             try {
                 const result = await AdminUsersAPI.update(userId, updates);
                 return result.user;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
-        // Fallback: consulta directa con supabaseAdmin
         const { data: oldData } = await supabase
             .from('profiles')
             .select('*')
@@ -104,7 +118,6 @@ export class AdminRepository {
     }
 
     static async createUser({ email, password, fullName, documentNumber, roleId, dependencyId }, adminId) {
-        // Intentar usar Edge Functions primero
         if (await shouldUseEdgeFunctions()) {
             try {
                 const result = await AdminUsersAPI.create({
@@ -116,8 +129,8 @@ export class AdminRepository {
                     dependencyId,
                 });
                 return result.user;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
@@ -183,17 +196,15 @@ export class AdminRepository {
     }
 
     static async deleteUser(userId, adminId) {
-        // Intentar usar Edge Functions primero
         if (await shouldUseEdgeFunctions()) {
             try {
                 await AdminUsersAPI.delete(userId);
                 return true;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
-        // Fallback: consulta directa con supabaseAdmin
         const { data: oldData } = await supabase
             .from('profiles')
             .select('*')
@@ -257,37 +268,34 @@ export class AdminRepository {
     }
 
     static async getConfig() {
-        // Intentar usar Edge Functions primero
         if (await shouldUseEdgeFunctions()) {
             try {
                 const result = await AdminConfigAPI.get();
                 return result.config;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
-        // Fallback: consulta directa con supabaseAdmin
-        const { data, error } = await supabase
-            .from('system_config')
-            .select('*');
-
-        if (error) throw error;
-        return data.reduce((acc, item) => ({ ...acc, [item.key]: item.value }), {});
+        try {
+            const { data, error } = await supabase.from('system_config').select('*');
+            if (error) return {};
+            return data.reduce((acc, item) => ({ ...acc, [item.key]: item.value }), {});
+        } catch {
+            return {};
+        }
     }
 
     static async updateConfig(key, value, adminId) {
-        // Intentar usar Edge Functions primero
         if (await shouldUseEdgeFunctions()) {
             try {
                 const result = await AdminConfigAPI.update(key, value);
                 return result.config;
-            } catch (error) {
-                console.warn('Edge Functions failed, falling back to direct query:', error.message);
+            } catch {
+                // Fallback to direct query
             }
         }
 
-        // Fallback: consulta directa con supabaseAdmin
         const { data: oldConfig } = await supabase
             .from('system_config')
             .select('*')

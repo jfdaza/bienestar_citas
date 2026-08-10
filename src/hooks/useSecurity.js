@@ -122,29 +122,58 @@ export function useTokenValidation() {
 
 // ============== SECURITY LOGGING ==============
 
+let securityLogsAvailable = null;
+
 export async function logSecurityEvent(action, details = {}) {
     try {
+        // Verificar si la tabla security_logs existe (solo una vez)
+        if (securityLogsAvailable === null) {
+            const { error: checkError } = await supabase
+                .from('security_logs')
+                .select('id')
+                .limit(1);
+            securityLogsAvailable = !checkError || checkError.code !== '42P01';
+        }
+
+        if (!securityLogsAvailable) return;
+
         const { data: { session } } = await supabase.auth.getSession();
 
-        await supabase.from('security_logs').insert({
+        const logEntry = {
             action,
             email: details.email || session?.user?.email,
-            ip_address: await getClientIP(),
             user_agent: navigator.userAgent,
             details,
-        });
+        };
+
+        // Obtener IP de forma opcional
+        try {
+            logEntry.ip_address = await getClientIP();
+        } catch {
+            logEntry.ip_address = null;
+        }
+
+        const { error } = await supabase.from('security_logs').insert(logEntry);
+        if (error && error.code !== '23505') {
+            console.warn('Security log:', error.message);
+        }
     } catch (error) {
-        console.error('Error logging security event:', error);
+        // No interrumpir el flujo de la aplicación
     }
 }
 
 async function getClientIP() {
     try {
-        const response = await fetch('https://api.ipify.org?format=json');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
+        const response = await fetch('https://api.ipify.org?format=json', {
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
         const data = await response.json();
         return data.ip;
     } catch {
-        return null;
+        return '127.0.0.1';
     }
 }
 

@@ -73,19 +73,25 @@ export function AuthProvider({ children }) {
         .single();
 
       if (error) {
-        // Si el perfil no existe, intentar crearlo
-        if (error.code === "PGRST116" || error.message.includes("not found")) {
+        // Si el perfil no existe o la tabla no existe, intentar crearlo
+        if (error.code === "PGRST116" || error.message.includes("not found") || error.code === "42P01") {
           console.warn("Perfil no encontrado, creando uno nuevo...");
           
           // Obtener datos del usuario de auth
           const { data: { user: authUser } } = await supabase.auth.getUser();
           
-          // Obtener rol de APRENDIZ por defecto
-          const { data: roleData } = await db
-            .from("roles")
-            .select("id")
-            .eq("name", "APRENDIZ")
-            .single();
+          // Obtener rol de APRENDIZ por defecto (con manejo de error)
+          let roleId = 6;
+          try {
+            const { data: roleData } = await db
+              .from("roles")
+              .select("id")
+              .eq("name", "APRENDIZ")
+              .single();
+            if (roleData) roleId = roleData.id;
+          } catch {
+            // Tabla roles no existe, usar default
+          }
 
           const { data: newProfile, error: createError } = await db
             .from("profiles")
@@ -94,46 +100,73 @@ export function AuthProvider({ children }) {
               full_name: authUser?.user_metadata?.full_name || "Usuario",
               email: authUser?.email || "",
               document_number: authUser?.user_metadata?.document_number || null,
-              role_id: roleData?.id || 6,
+              role_id: roleId,
               is_active: true,
             }, { onConflict: "id" })
             .select()
             .single();
 
           if (createError) {
+            // Si la tabla profiles no existe, crear perfil local
+            if (createError.code === "42P01") {
+              setProfile({
+                id: userId,
+                full_name: authUser?.user_metadata?.full_name || "Usuario",
+                email: authUser?.email || "",
+                roles: { name: "APRENDIZ" },
+                dependencies: null,
+              });
+              return;
+            }
             throw new Error("No se pudo crear el perfil del usuario");
           }
 
-          // Enriquecer el nuevo perfil
-          const [rolesRes, depsRes] = await Promise.all([
-            db.from("roles").select("name, permissions").eq("id", newProfile.role_id).single(),
-            newProfile.dependency_id
-              ? db.from("dependencies").select("name").eq("id", newProfile.dependency_id).single()
-              : { data: null },
-          ]);
+          // Enriquecer el nuevo perfil (con manejo de errores)
+          let rolesData = null;
+          let depsData = null;
+          try {
+            const [rolesRes, depsRes] = await Promise.all([
+              db.from("roles").select("name, permissions").eq("id", newProfile.role_id).single(),
+              newProfile.dependency_id
+                ? db.from("dependencies").select("name").eq("id", newProfile.dependency_id).single()
+                : { data: null },
+            ]);
+            rolesData = rolesRes.data;
+            depsData = depsRes.data;
+          } catch {
+            // Tablas roles/dependencies no existen
+          }
 
           setProfile({
             ...newProfile,
-            roles: rolesRes.data || null,
-            dependencies: depsRes.data || null,
+            roles: rolesData || { name: "APRENDIZ" },
+            dependencies: depsData || null,
           });
           return;
         }
         throw error;
       }
 
-      // Enriquecer con roles y dependencies por separado
-      const [rolesRes, depsRes] = await Promise.all([
-        db.from("roles").select("name, permissions").eq("id", data.role_id).single(),
-        data.dependency_id
-          ? db.from("dependencies").select("name").eq("id", data.dependency_id).single()
-          : { data: null },
-      ]);
+      // Enriquecer con roles y dependencies por separado (con manejo de errores)
+      let rolesData = null;
+      let depsData = null;
+      try {
+        const [rolesRes, depsRes] = await Promise.all([
+          db.from("roles").select("name, permissions").eq("id", data.role_id).single(),
+          data.dependency_id
+            ? db.from("dependencies").select("name").eq("id", data.dependency_id).single()
+            : { data: null },
+        ]);
+        rolesData = rolesRes.data;
+        depsData = depsRes.data;
+      } catch {
+        // Tablas roles/dependencies no existen
+      }
 
       setProfile({
         ...data,
-        roles: rolesRes.data || null,
-        dependencies: depsRes.data || null,
+        roles: rolesData || null,
+        dependencies: depsData || null,
       });
     } catch (err) {
       console.error("Error cargando perfil:", err.message || err);
@@ -149,16 +182,16 @@ export function AuthProvider({ children }) {
         password,
       });
       if (error) {
-        // Log intento fallido
-        await logSecurityEvent('login_failed', {
+        // Log intento fallido (sin await para no bloquear)
+        logSecurityEvent('login_failed', {
           email,
           error: error.message,
-        });
+        }).catch(() => {});
         throw error;
       }
       
-      // Log login exitoso
-      await logSecurityEvent('login_success', { email });
+      // Log login exitoso (sin await para no bloquear)
+      logSecurityEvent('login_success', { email }).catch(() => {});
       
       return { success: true, data };
     } catch (err) {
