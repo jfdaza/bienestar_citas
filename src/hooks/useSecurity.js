@@ -158,6 +158,7 @@ export async function logSecurityEvent(action, details = {}) {
             console.warn('Security log:', error.message);
         }
     } catch (error) {
+        console.warn('Security log failed:', error.message);
         // No interrumpir el flujo de la aplicación
     }
 }

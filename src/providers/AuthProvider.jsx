@@ -39,11 +39,7 @@ export function AuthProvider({ children }) {
     };
     init();
 
-    // Logout automático al cerrar la pestaña/navegador
-    const handleBeforeUnload = () => {
-      supabase.auth.signOut();
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    // (Removido) beforeunload signOut — causaba deslogueo al recargar la página
 
     // Escuchar cambios de auth
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -59,7 +55,6 @@ export function AuthProvider({ children }) {
     );
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       listener.subscription.unsubscribe();
     };
   }, []);

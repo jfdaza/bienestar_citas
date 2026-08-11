@@ -23,9 +23,13 @@ export class DashboardRepository {
         start_date: dateRange.from,
         end_date: dateRange.to,
       });
-      if (error) return null;
+      if (error) {
+        console.error("Error en get_dashboard_kpis:", error.message);
+        return null;
+      }
       return data;
-    } catch {
+    } catch (err) {
+      console.error("Excepción en get_dashboard_kpis:", err.message);
       return null;
     }
   }
@@ -41,7 +45,10 @@ export class DashboardRepository {
         .gte("scheduled_date", dateRange.from)
         .lte("scheduled_date", dateRange.to);
 
-      if (error) return [];
+      if (error) {
+        console.error("Error en getAppointmentsByDependency:", error.message);
+        return [];
+      }
 
       const grouped = data.reduce((acc, curr) => {
         const depName = curr.dependencies?.name || "Sin dependencia";
@@ -69,7 +76,10 @@ export class DashboardRepository {
       const { data, error } = await supabase.rpc("get_monthly_appointments", {
         year_param: year,
       });
-      if (error) return [];
+      if (error) {
+        console.error("Error en get_monthly_appointments:", error.message);
+        return [];
+      }
       return data;
     } catch {
       return [];
@@ -88,7 +98,10 @@ export class DashboardRepository {
         .gte("scheduled_date", dateRange.from)
         .lte("scheduled_date", dateRange.to);
 
-      if (error) return [];
+      if (error) {
+        console.error("Error en getProfessionalPerformance:", error.message);
+        return [];
+      }
 
       const profIds = [...new Set(data.map((d) => d.professional_id))];
       let profileMap = {};
@@ -131,7 +144,10 @@ export class DashboardRepository {
         .lte("scheduled_date", dateRange.to)
         .order("created_at", { ascending: false });
 
-      if (error) return [];
+      if (error) {
+        console.error("Error en getRawDataForExport:", error.message);
+        return [];
+      }
 
       const userIds = [...new Set(data.map((d) => d.user_id))];
       const depIds = [...new Set(data.map((d) => d.dependency_id))];
