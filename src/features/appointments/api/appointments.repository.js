@@ -3,12 +3,16 @@ import { supabaseAdmin as supabase } from "../../../lib/supabase";
 let tablesAvailable = null;
 let joinsAvailable = null;
 
-const SELECT_WITH_JOINS = "*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)";
+const SELECT_WITH_JOINS =
+  "*, profiles!appointments_user_id_fkey(id, full_name, document_number), dependencies!appointments_dependency_id_fkey(id, name, color), profiles!appointments_professional_id_fkey(id, full_name)";
 
 async function checkTables() {
   if (tablesAvailable !== null) return tablesAvailable;
   try {
-    const { error } = await supabase.from("appointments").select("id").limit(1);
+    const { error } = await supabase
+      .from("appointments")
+      .select("id")
+      .limit(1);
     tablesAvailable = !error || error.code !== "42P01";
   } catch {
     tablesAvailable = false;
@@ -19,7 +23,10 @@ async function checkTables() {
 async function checkJoins() {
   if (joinsAvailable !== null) return joinsAvailable;
   try {
-    const { error } = await supabase.from("appointments").select(SELECT_WITH_JOINS).limit(1);
+    const { error } = await supabase
+      .from("appointments")
+      .select(SELECT_WITH_JOINS)
+      .limit(1);
     joinsAvailable = !error;
   } catch {
     joinsAvailable = false;
@@ -27,19 +34,14 @@ async function checkJoins() {
   return joinsAvailable;
 }
 
-async function safeSelect(query) {
-  const useJoins = await checkJoins();
-  if (useJoins) {
-    const { data, error } = await query.select(SELECT_WITH_JOINS);
-    if (error) {
-      joinsAvailable = false;
-      const { data: fallback } = await query.select("*");
-      return fallback || [];
-    }
-    return data || [];
-  }
-  const { data } = await query.select("*");
-  return data || [];
+function applyFilters(query, { userId, dependencyId, status, dateFrom, dateTo }) {
+  if (userId) query = query.eq("user_id", userId);
+  if (dependencyId) query = query.eq("dependency_id", dependencyId);
+  if (status) query = query.eq("status", status);
+  if (dateFrom) query = query.gte("scheduled_date", dateFrom);
+  if (dateTo) query = query.lte("scheduled_date", dateTo);
+  return query.order("scheduled_date", { ascending: true })
+    .order("scheduled_time", { ascending: true });
 }
 
 export class AppointmentRepository {
@@ -57,7 +59,11 @@ export class AppointmentRepository {
       .single();
 
     if (error) {
-      if (useJoins && (error.message.includes("relation") || error.message.includes("foreign"))) {
+      if (
+        useJoins &&
+        (error.message.includes("relation") ||
+          error.message.includes("foreign"))
+      ) {
         joinsAvailable = false;
         const { data: fallback } = await supabase
           .from("appointments")
@@ -77,20 +83,32 @@ export class AppointmentRepository {
 
     AppointmentRepository.cancelExpired().catch(() => {});
 
-    let query = supabase.from("appointments");
+    const useJoins = await checkJoins();
+    const selectClause = useJoins ? SELECT_WITH_JOINS : "*";
+    const filters = { userId, dependencyId, status, dateFrom, dateTo };
 
-    if (userId) query = query.eq("user_id", userId);
-    if (dependencyId) query = query.eq("dependency_id", dependencyId);
-    if (status) query = query.eq("status", status);
-    if (dateFrom) query = query.gte("scheduled_date", dateFrom);
-    if (dateTo) query = query.lte("scheduled_date", dateTo);
+    let query = applyFilters(
+      supabase.from("appointments").select(selectClause),
+      filters,
+    );
 
-    query = query
-      .order("scheduled_date", { ascending: true })
-      .order("scheduled_time", { ascending: true });
+    const { data, error } = await query;
 
-    const data = await safeSelect(query);
-    return data;
+    if (error && useJoins) {
+      joinsAvailable = false;
+      const fallbackQuery = applyFilters(
+        supabase.from("appointments").select("*"),
+        filters,
+      );
+      const { data: fallbackData } = await fallbackQuery;
+      return fallbackData || [];
+    }
+
+    if (error) {
+      throw new Error(`Error consultando citas: ${error.message}`);
+    }
+
+    return data || [];
   }
 
   static async update(id, updates) {
@@ -108,7 +126,11 @@ export class AppointmentRepository {
       .single();
 
     if (error) {
-      if (useJoins && (error.message.includes("relation") || error.message.includes("foreign"))) {
+      if (
+        useJoins &&
+        (error.message.includes("relation") ||
+          error.message.includes("foreign"))
+      ) {
         joinsAvailable = false;
         const { data: fallback } = await supabase
           .from("appointments")
@@ -160,8 +182,13 @@ export class AppointmentRepository {
     if (!available) return;
 
     const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    const currentTime = now.toTimeString().split(" ")[0].slice(0, 5);
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    const today = `${y}-${m}-${d}`;
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const currentTime = `${hh}:${mm}`;
 
     try {
       await supabase

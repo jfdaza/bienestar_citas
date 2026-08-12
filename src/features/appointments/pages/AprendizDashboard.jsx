@@ -65,7 +65,7 @@ function SkeletonCard() {
 }
 
 export default function AprendizDashboard() {
-  const { appointments, fetchAppointments, cancelAppointment, isLoading } =
+  const { appointments, fetchAppointments, cancelAppointment, isLoading, error } =
     useAppointments();
   const { signOut, profile } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -379,6 +379,38 @@ export default function AprendizDashboard() {
 
       {/* Main Content */}
       <main style={{ paddingBottom: '80px' }}>
+        {error && (
+          <div style={{
+            padding: '1rem',
+            marginBottom: '1rem',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: '8px',
+            color: '#991B1B',
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            <AlertCircle size={18} />
+            <span>{error}</span>
+            <button
+              onClick={() => fetchAppointments()}
+              style={{
+                marginLeft: 'auto',
+                padding: '0.25rem 0.75rem',
+                background: '#991B1B',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
         {renderContent()}
       </main>
 

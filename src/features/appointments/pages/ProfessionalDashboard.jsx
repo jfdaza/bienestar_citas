@@ -5,7 +5,7 @@ import { useAuth } from "../../../providers/AuthProvider";
 import { toast } from "sonner";
 import { 
   CheckCircle, XCircle, Clock, Calendar, LogOut, 
-  Bell, CalendarDays, ChevronDown, Filter
+  Bell, CalendarDays, ChevronDown, Filter, AlertCircle
 } from "lucide-react";
 
 const FILTER_TABS = [
@@ -33,7 +33,7 @@ function markAppointmentSeen(id) {
 }
 
 export default function ProfessionalDashboard() {
-  const { appointments, fetchAppointments, updateStatus, isLoading } =
+  const { appointments, fetchAppointments, updateStatus, isLoading, error } =
     useAppointments();
   const { profile, signOut } = useAuth();
   const [filter, setFilter] = useState("pending");
@@ -269,6 +269,40 @@ export default function ProfessionalDashboard() {
         </h2>
         <p style={{ color: '#6B7280' }}>Gestiona las citas programadas para hoy.</p>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          padding: '1rem',
+          marginBottom: '1rem',
+          background: '#FEF2F2',
+          border: '1px solid #FECACA',
+          borderRadius: '8px',
+          color: '#991B1B',
+          fontSize: '0.875rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+        }}>
+          <AlertCircle size={18} />
+          <span>{error}</span>
+          <button
+            onClick={() => fetchAppointments({ status: filter })}
+            style={{
+              marginLeft: 'auto',
+              padding: '0.25rem 0.75rem',
+              background: '#991B1B',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8rem',
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Date Selector */}
       <div style={{ 

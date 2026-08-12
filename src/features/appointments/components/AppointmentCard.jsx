@@ -11,6 +11,8 @@ import {
   Lock,
 } from "lucide-react";
 
+const DEFAULT_STATUS = { label: "Desconocido", color: "#6b7280", icon: AlertCircle };
+
 const STATUS_CONFIG = {
   pending: { label: "Pendiente", color: "#f59e0b", icon: AlertCircle },
   confirmed: { label: "Confirmada", color: "#3b82f6", icon: CheckCircle },
@@ -20,6 +22,8 @@ const STATUS_CONFIG = {
 };
 
 export function AppointmentCard({ appointment, onCancel, onEdit, isAprendiz }) {
+  if (!appointment) return null;
+
   const {
     dependencies,
     scheduled_date,
@@ -29,7 +33,8 @@ export function AppointmentCard({ appointment, onCancel, onEdit, isAprendiz }) {
     notes,
     profiles,
   } = appointment;
-  const config = STATUS_CONFIG[status];
+
+  const config = STATUS_CONFIG[status] || DEFAULT_STATUS;
   const Icon = config.icon;
   const isLocked = status === "completed" || status === "no_show" || status === "cancelled";
 
@@ -55,16 +60,20 @@ export function AppointmentCard({ appointment, onCancel, onEdit, isAprendiz }) {
       <div className="card-datetime">
         <div className="datetime-item">
           <Calendar size={16} />
-          <span>{format(parseISO(scheduled_date), "PPP", { locale: es })}</span>
+          <span>
+            {scheduled_date
+              ? format(parseISO(scheduled_date), "PPP", { locale: es })
+              : "Fecha no disponible"}
+          </span>
         </div>
         <div className="datetime-item">
           <Clock size={16} />
-          <span>{scheduled_time}</span>
+          <span>{scheduled_time || "Hora no disponible"}</span>
         </div>
       </div>
 
       <div className="card-body">
-        <p className="reason">{reason}</p>
+        {reason && <p className="reason">{reason}</p>}
         {!isAprendiz && profiles && (
           <div className="aprendiz-info">
             <User size={14} />
