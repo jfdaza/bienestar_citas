@@ -23,25 +23,26 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Restaurar sesión existente al cargar/recargar la página
     const init = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
         if (session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
         }
       } catch {
-        // Ignorar errores
+        await supabase.auth.signOut();
       } finally {
         setLoading(false);
       }
     };
     init();
 
-    // (Removido) beforeunload signOut — causaba deslogueo al recargar la página
-
-    // Escuchar cambios de auth
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
