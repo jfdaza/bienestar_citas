@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Bienestar SENA" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rtoyvifyinoeywfnmvyy.supabase.co wss://rtoyvifyinoeywfnmvyy.supabase.co https://api.ipify.org;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' ws: wss: https://rtoyvifyinoeywfnmvyy.supabase.co wss://rtoyvifyinoeywfnmvyy.supabase.co https://api.ipify.org;" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,12 +21,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((reg) => console.log('SW registered:', reg.scope))
             .catch((err) => console.log('SW registration failed:', err));
         });
+      } else if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          regs.forEach((reg) => reg.unregister());
+        });
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
       }
     </script>
   </body>

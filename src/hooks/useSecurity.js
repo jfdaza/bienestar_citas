@@ -139,6 +139,8 @@ export async function logSecurityEvent(action, details = {}) {
 
         const { data: { session } } = await supabase.auth.getSession();
 
+        const { data: { session } } = await supabase.auth.getSession();
+
         const logEntry = {
             action,
             email: details.email || session?.user?.email,
@@ -146,7 +148,6 @@ export async function logSecurityEvent(action, details = {}) {
             details,
         };
 
-        // Obtener IP de forma opcional
         try {
             logEntry.ip_address = await getClientIP();
         } catch {
@@ -154,12 +155,11 @@ export async function logSecurityEvent(action, details = {}) {
         }
 
         const { error } = await supabase.from('security_logs').insert(logEntry);
-        if (error && error.code !== '23505') {
+        if (error && error.code !== '23505' && error.code !== '42P01') {
             console.warn('Security log:', error.message);
         }
     } catch (error) {
         console.warn('Security log failed:', error.message);
-        // No interrumpir el flujo de la aplicación
     }
 }
 
