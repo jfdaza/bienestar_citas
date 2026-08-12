@@ -75,6 +75,8 @@ export class AppointmentRepository {
     const available = await checkTables();
     if (!available) return [];
 
+    await AppointmentRepository.cancelExpired();
+
     let query = supabase.from("appointments");
 
     if (userId) query = query.eq("user_id", userId);
@@ -151,5 +153,24 @@ export class AppointmentRepository {
 
     if (error) return 0;
     return count;
+  }
+
+  static async cancelExpired() {
+    const available = await checkTables();
+    if (!available) return;
+
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const currentTime = now.toTimeString().split(" ")[0].slice(0, 5);
+
+    try {
+      await supabase
+        .from("appointments")
+        .update({ status: "cancelled", updated_at: now.toISOString() })
+        .in("status", ["pending", "confirmed"])
+        .or(`scheduled_date.lt.${today},and(scheduled_date.eq.${today},scheduled_time.lt.${currentTime})`);
+    } catch {
+      // Silenciar errores de cancelación automática
+    }
   }
 }
