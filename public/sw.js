@@ -1,6 +1,5 @@
-const CACHE_NAME = "sena-bienestar-v2";
-const STATIC_CACHE = "sena-static-v2";
-const DYNAMIC_CACHE = "sena-dynamic-v2";
+const CACHE_NAME = "sena-bienestar-v3";
+const STATIC_CACHE = "sena-static-v3";
 
 const STATIC_ASSETS = [
   "/",
@@ -23,7 +22,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys
-          .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
+          .filter((key) => key !== STATIC_CACHE)
           .map((key) => caches.delete(key))
       );
     })
@@ -31,88 +30,43 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch: network first for API, cache first for static
+// Fetch: only intercept same-origin navigation and static assets
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
+  // Only handle GET requests from same origin
   if (request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
 
-  // Skip Supabase API calls (always go to network)
-  if (url.hostname.includes("supabase")) return;
+  // Only cache navigation requests and known static assets
+  const isNavigation = request.mode === "navigate";
+  const isStaticAsset = STATIC_ASSETS.some((asset) => url.pathname === asset);
 
-  // Skip Vercel SSO and internal URLs
-  if (url.pathname.includes("sso-api")) return;
-  if (url.pathname.includes("/_next/")) return;
-  if (url.pathname.includes("/api/")) return;
-
-  // Skip chrome-extension and other non-http
-  if (!url.protocol.startsWith("http")) return;
+  if (!isNavigation && !isStaticAsset) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
+      if (cached) return cached;
+
       return fetch(request)
         .then((response) => {
-          // Don't cache bad responses or redirects
-          if (!response || response.status !== 200 || response.redirected) {
-            return response;
-          }
+          if (!response || response.status !== 200) return response;
 
-          // Clone the response
           const responseClone = response.clone();
-
-          caches.open(DYNAMIC_CACHE).then((cache) => {
+          caches.open(STATIC_CACHE).then((cache) => {
             cache.put(request, responseClone);
           });
 
           return response;
         })
         .catch(() => {
-          // Return cached version if network fails
-          if (cached) return cached;
-          // Return a proper offline response for navigation requests
-          if (request.mode === "navigate") {
+          // Only return cached index.html for navigation requests
+          if (isNavigation) {
             return caches.match("/index.html");
           }
           return new Response("Offline", { status: 503, statusText: "Offline" });
         });
-    })
-  );
-});
-
-// Handle push notifications
-self.addEventListener("push", (event) => {
-  const data = event.data?.json() || {
-    title: "Bienestar SENA",
-    body: "Tienes una actualización en tus citas",
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      vibrate: [200, 100, 200],
-      tag: "sena-notification",
-    })
-  );
-});
-
-// Handle notification click
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  event.waitUntil(
-    clients.matchAll({ type: "window" }).then((windowClients) => {
-      // Focus existing window if available
-      for (const client of windowClients) {
-        if (client.url.includes("/") && "focus" in client) {
-          return client.focus();
-        }
-      }
-      // Otherwise open new window
-      return clients.openWindow("/");
     })
   );
 });
