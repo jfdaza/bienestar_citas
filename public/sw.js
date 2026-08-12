@@ -1,6 +1,6 @@
-const CACHE_NAME = "sena-bienestar-v1";
-const STATIC_CACHE = "sena-static-v1";
-const DYNAMIC_CACHE = "sena-dynamic-v1";
+const CACHE_NAME = "sena-bienestar-v2";
+const STATIC_CACHE = "sena-static-v2";
+const DYNAMIC_CACHE = "sena-dynamic-v2";
 
 const STATIC_ASSETS = [
   "/",
