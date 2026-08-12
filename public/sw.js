@@ -5,7 +5,6 @@ const DYNAMIC_CACHE = "sena-dynamic-v1";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/manifest.json",
 ];
 
 // Install: cache static assets
@@ -44,15 +43,16 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname.includes("supabase")) return;
 
   // Skip Vercel SSO and internal URLs
-  if (url.hostname.includes("vercel.app") && url.pathname.includes("sso-api")) return;
+  if (url.pathname.includes("sso-api")) return;
   if (url.pathname.includes("/_next/")) return;
+  if (url.pathname.includes("/api/")) return;
 
   // Skip chrome-extension and other non-http
   if (!url.protocol.startsWith("http")) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetched = fetch(request)
+      return fetch(request)
         .then((response) => {
           // Don't cache bad responses or redirects
           if (!response || response.status !== 200 || response.redirected) {
@@ -70,10 +70,13 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => {
           // Return cached version if network fails
-          return cached;
+          if (cached) return cached;
+          // Return a proper offline response for navigation requests
+          if (request.mode === "navigate") {
+            return caches.match("/index.html");
+          }
+          return new Response("Offline", { status: 503, statusText: "Offline" });
         });
-
-      return cached || fetched;
     })
   );
 });
