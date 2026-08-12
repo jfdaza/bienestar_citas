@@ -168,7 +168,14 @@ export class AppointmentRepository {
         .from("appointments")
         .update({ status: "cancelled", updated_at: now.toISOString() })
         .in("status", ["pending", "confirmed"])
-        .or(`scheduled_date.lt.${today},and(scheduled_date.eq.${today},scheduled_time.lt.${currentTime})`);
+        .lt("scheduled_date", today);
+
+      await supabase
+        .from("appointments")
+        .update({ status: "cancelled", updated_at: now.toISOString() })
+        .in("status", ["pending", "confirmed"])
+        .eq("scheduled_date", today)
+        .lt("scheduled_time", currentTime);
     } catch {
       // Silenciar errores de cancelación automática
     }
