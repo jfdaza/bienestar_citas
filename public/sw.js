@@ -43,6 +43,10 @@ self.addEventListener("fetch", (event) => {
   // Skip Supabase API calls (always go to network)
   if (url.hostname.includes("supabase")) return;
 
+  // Skip Vercel SSO and internal URLs
+  if (url.hostname.includes("vercel.app") && url.pathname.includes("sso-api")) return;
+  if (url.pathname.includes("/_next/")) return;
+
   // Skip chrome-extension and other non-http
   if (!url.protocol.startsWith("http")) return;
 
@@ -50,8 +54,8 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => {
       const fetched = fetch(request)
         .then((response) => {
-          // Don't cache bad responses
-          if (!response || response.status !== 200) {
+          // Don't cache bad responses or redirects
+          if (!response || response.status !== 200 || response.redirected) {
             return response;
           }
 

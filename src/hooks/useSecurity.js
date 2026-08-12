@@ -122,61 +122,8 @@ export function useTokenValidation() {
 
 // ============== SECURITY LOGGING ==============
 
-let securityLogsAvailable = null;
-
-export async function logSecurityEvent(action, details = {}) {
-    try {
-        if (securityLogsAvailable === false) return;
-
-        if (securityLogsAvailable === null) {
-            const { error: checkError } = await supabase
-                .from('security_logs')
-                .select('id')
-                .limit(1);
-            if (checkError) {
-                securityLogsAvailable = false;
-                return;
-            }
-            securityLogsAvailable = true;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        const logEntry = {
-            action,
-            email: details.email || session?.user?.email,
-            user_agent: navigator.userAgent,
-            details,
-        };
-
-        try {
-            logEntry.ip_address = await getClientIP();
-        } catch {
-            logEntry.ip_address = null;
-        }
-
-        const { error } = await supabase.from('security_logs').insert(logEntry);
-        if (error && error.code !== '23505') {
-            securityLogsAvailable = false;
-        }
-    } catch {
-        securityLogsAvailable = false;
-    }
-}
-
-async function getClientIP() {
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
-        const response = await fetch('https://api.ipify.org?format=json', {
-            signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        const data = await response.json();
-        return data.ip;
-    } catch {
-        return '127.0.0.1';
-    }
+export async function logSecurityEvent() {
+    return;
 }
 
 // ============== INPUT SANITIZATION ==============
