@@ -139,8 +139,6 @@ export async function logSecurityEvent(action, details = {}) {
 
         const { data: { session } } = await supabase.auth.getSession();
 
-        const { data: { session } } = await supabase.auth.getSession();
-
         const logEntry = {
             action,
             email: details.email || session?.user?.email,

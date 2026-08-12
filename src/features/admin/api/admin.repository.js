@@ -48,8 +48,8 @@ export class AdminRepository {
                 query = query.or(`full_name.ilike.%${search}%, document_number.ilike.%${search}%`);
             }
 
-            const from = (page - 1) * limit;
-            const to = from + limit - 1;
+            const from = (page - 1) * userLimit;
+            const to = from + userLimit - 1;
             const { data, error, count } = await query.range(from, to);
             if (error) return { users: [], total: 0, page, totalPages: 0 };
 
@@ -75,7 +75,7 @@ export class AdminRepository {
                 filtered = enriched.filter(u => u.roles?.name === role);
             }
 
-            return { users: filtered, total: count, page, totalPages: Math.ceil(count / limit) };
+            return { users: filtered, total: count, page, totalPages: Math.ceil(count / userLimit) };
         } catch {
             return { users: [], total: 0, page, totalPages: 0 };
         }
