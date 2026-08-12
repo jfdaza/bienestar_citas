@@ -75,7 +75,7 @@ export class AppointmentRepository {
     const available = await checkTables();
     if (!available) return [];
 
-    await AppointmentRepository.cancelExpired();
+    AppointmentRepository.cancelExpired().catch(() => {});
 
     let query = supabase.from("appointments");
 

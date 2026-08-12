@@ -126,16 +126,19 @@ let securityLogsAvailable = null;
 
 export async function logSecurityEvent(action, details = {}) {
     try {
-        // Verificar si la tabla security_logs existe (solo una vez)
+        if (securityLogsAvailable === false) return;
+
         if (securityLogsAvailable === null) {
             const { error: checkError } = await supabase
                 .from('security_logs')
                 .select('id')
                 .limit(1);
-            securityLogsAvailable = !checkError || checkError.code !== '42P01';
+            if (checkError) {
+                securityLogsAvailable = false;
+                return;
+            }
+            securityLogsAvailable = true;
         }
-
-        if (!securityLogsAvailable) return;
 
         const { data: { session } } = await supabase.auth.getSession();
 
@@ -153,11 +156,11 @@ export async function logSecurityEvent(action, details = {}) {
         }
 
         const { error } = await supabase.from('security_logs').insert(logEntry);
-        if (error && error.code !== '23505' && error.code !== '42P01') {
-            console.warn('Security log:', error.message);
+        if (error && error.code !== '23505') {
+            securityLogsAvailable = false;
         }
-    } catch (error) {
-        console.warn('Security log failed:', error.message);
+    } catch {
+        securityLogsAvailable = false;
     }
 }
 
