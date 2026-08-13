@@ -6,8 +6,28 @@ import { useState, useEffect } from "react";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { 
   Calendar, Clock, FileText, CheckCircle, Lock, 
-  ChevronLeft, ChevronRight, Info, CalendarDays
+  ChevronLeft, ChevronRight, Info, CalendarDays, X
 } from "lucide-react";
+
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
+const DAYS_OF_WEEK = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function getDaysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(year, month) {
+  const day = new Date(year, month, 1).getDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+function formatDateStr(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 const MAX_REASON_LENGTH = 250;
 
@@ -46,29 +66,7 @@ const TIME_SLOTS = [
   "5:00 p. m."
 ];
 
-function getWeekDays() {
-  const days = [];
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + mondayOffset + i);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    days.push({
-      date: `${y}-${m}-${d}`,
-      day: date.toLocaleDateString("es-ES", { weekday: "short" }),
-      number: date.getDate(),
-      month: date.toLocaleDateString("es-ES", { month: "short" }),
-      isToday: date.toDateString() === today.toDateString(),
-    });
-  }
-  return days;
-}
-
-export function AppointmentForm({ onSuccess }) {
+export function AppointmentForm({ onSuccess, onClose }) {
   const { createAppointment, isCreating } = useAppointments();
   const [dependencies, setDependencies] = useState([]);
   const [reasonLength, setReasonLength] = useState(0);
@@ -76,7 +74,9 @@ export function AppointmentForm({ onSuccess }) {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [weekDays, setWeekDays] = useState([]);
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
   const {
     register,
@@ -99,10 +99,6 @@ export function AppointmentForm({ onSuccess }) {
   useEffect(() => {
     setReasonLength(reasonValue?.length || 0);
   }, [reasonValue]);
-
-  useEffect(() => {
-    setWeekDays(getWeekDays());
-  }, []);
 
   useEffect(() => {
     async function loadDependencies() {
@@ -131,9 +127,9 @@ export function AppointmentForm({ onSuccess }) {
     }
   };
 
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setValue("scheduled_date", date.date);
+  const handleDateSelect = (dateStr) => {
+    setSelectedDate({ date: dateStr });
+    setValue("scheduled_date", dateStr);
     setStep(3);
   };
 
@@ -148,6 +144,61 @@ export function AppointmentForm({ onSuccess }) {
     setStep(4);
   };
 
+  const prevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
+    } else {
+      setCurrentMonth(currentMonth - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
+  };
+
+  const isWeekend = (dayOfWeek) => dayOfWeek === 0 || dayOfWeek === 6;
+
+  const isPastDate = (year, month, day) => {
+    const date = new Date(year, month, day);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return date < todayStart;
+  };
+
+  const getCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+    const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push({ day: null, key: `empty-${i}` });
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = formatDateStr(currentYear, currentMonth, d);
+      const dateObj = new Date(currentYear, currentMonth, d);
+      const dayOfWeek = dateObj.getDay();
+      const todayStr = formatDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+      days.push({
+        day: d,
+        dateStr,
+        isToday: dateStr === todayStr,
+        isWeekend: isWeekend(dayOfWeek),
+        isPast: isPastDate(currentYear, currentMonth, d),
+        isSelected: selectedDate?.date === dateStr,
+        key: `day-${d}`,
+      });
+    }
+
+    return days;
+  };
+
   const onSubmit = async (data) => {
     const result = await createAppointment(data);
     if (result.success) {
@@ -159,6 +210,18 @@ export function AppointmentForm({ onSuccess }) {
 
   return (
     <div className="new-appointment-form">
+      {/* Close button - visible in all steps */}
+      {onClose && (
+        <button
+          type="button"
+          className="form-close-btn"
+          onClick={onClose}
+          aria-label="Cerrar formulario"
+        >
+          <X size={20} />
+        </button>
+      )}
+
       {/* Step Indicator */}
       <div className="auth-steps">
         {[1, 2, 3, 4].map((s) => (
@@ -222,23 +285,50 @@ export function AppointmentForm({ onSuccess }) {
             </button>
           </div>
           
-          <div className="date-picker-container">
-            <div className="date-cards">
-              {weekDays.map((day) => (
-                <div
-                  key={day.date}
-                  className={`date-card ${selectedDate?.date === day.date ? 'selected' : ''}`}
-                  onClick={() => handleDateSelect(day)}
+          <div className="month-calendar">
+            <div className="calendar-header">
+              <button type="button" className="calendar-nav-btn" onClick={prevMonth}>
+                <ChevronLeft size={18} />
+              </button>
+              <span className="calendar-month-label">
+                {MONTH_NAMES[currentMonth]} {currentYear}
+              </span>
+              <button type="button" className="calendar-nav-btn" onClick={nextMonth}>
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            <div className="calendar-grid">
+              {DAYS_OF_WEEK.map((day) => (
+                <div key={day} className="calendar-day-label">{day}</div>
+              ))}
+              {getCalendarDays().map((cell) => (
+                <button
+                  key={cell.key}
+                  type="button"
+                  className={`calendar-day ${cell.isToday ? 'today' : ''} ${cell.isSelected ? 'selected' : ''} ${cell.isWeekend || cell.isPast ? 'disabled' : ''}`}
+                  disabled={cell.isWeekend || cell.isPast}
+                  onClick={() => !cell.isWeekend && !cell.isPast && handleDateSelect(cell.dateStr)}
                 >
-                  <span className="date-card-day">{day.day}</span>
-                  <span className="date-card-number">{day.number}</span>
-                  <span className="date-card-month">{day.month}</span>
-                </div>
+                  {cell.day}
+                </button>
               ))}
             </div>
+
+            <div className="calendar-legend">
+              <span className="legend-item">
+                <span className="legend-dot today-dot"></span>
+                Hoy
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot selected-dot"></span>
+                Seleccionado
+              </span>
+            </div>
+
             <div className="date-info">
               <Calendar size={14} />
-              Solo se muestran fechas con disponibilidad
+              Solo se muestran días hábiles (lunes a viernes)
             </div>
           </div>
           {errors.scheduled_date && (

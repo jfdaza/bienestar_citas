@@ -340,6 +340,7 @@ export default function AprendizDashboard() {
                 setShowForm(false);
                 fetchAppointments();
               }}
+              onClose={() => setShowForm(false)}
             />
           </div>
         </div>
