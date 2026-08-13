@@ -329,12 +329,6 @@ export default function AprendizDashboard() {
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Nueva Cita</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>
-                <XCircle size={20} />
-              </button>
-            </div>
             <AppointmentForm
               onSuccess={() => {
                 setShowForm(false);
