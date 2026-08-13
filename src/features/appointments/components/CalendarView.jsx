@@ -1,26 +1,10 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Clock, User, AlertTriangle } from "lucide-react";
 import { supabaseAdmin as supabase } from "../../../lib/supabase";
-
-const DAYS_OF_WEEK = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-];
-
-function getDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year, month) {
-  const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1;
-}
-
-function formatDateStr(year, month, day) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
+import {
+  MONTH_NAMES, DAYS_OF_WEEK, getDaysInMonth,
+  getFirstDayOfMonth, formatDateStr, navigateMonth
+} from "../../../shared/utils/calendar";
 
 const TIME_SLOTS = [
   "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
@@ -90,21 +74,15 @@ export function CalendarView({ appointments = [], dependencyId = null }) {
   }, [fetchBusySlots]);
 
   const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    const { year, month } = navigateMonth(currentYear, currentMonth, -1);
+    setCurrentYear(year);
+    setCurrentMonth(month);
   };
 
   const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    const { year, month } = navigateMonth(currentYear, currentMonth, 1);
+    setCurrentYear(year);
+    setCurrentMonth(month);
   };
 
   const goToToday = () => {

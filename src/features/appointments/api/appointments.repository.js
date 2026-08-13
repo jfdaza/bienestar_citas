@@ -159,7 +159,10 @@ export class AppointmentRepository {
     if (excludeId) query = query.neq("id", excludeId);
 
     const { data, error } = await query;
-    if (error) return true;
+    if (error) {
+      console.error("Error checking availability:", error.message);
+      throw new Error("No se pudo verificar la disponibilidad del horario");
+    }
     return data.length === 0;
   }
 
@@ -173,7 +176,10 @@ export class AppointmentRepository {
       .eq("user_id", userId)
       .eq("status", "pending");
 
-    if (error) return 0;
+    if (error) {
+      console.error("Error counting pending appointments:", error.message);
+      throw new Error("No se pudieron contar las citas pendientes");
+    }
     return count;
   }
 

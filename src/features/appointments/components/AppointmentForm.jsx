@@ -4,30 +4,15 @@ import { appointmentSchema } from "../validations/appointment.schema";
 import { useAppointments } from "../hooks/useAppointments";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { 
-  Calendar, Clock, FileText, CheckCircle, Lock, 
+import {
+  Calendar, Clock, FileText, CheckCircle, Lock,
   ChevronLeft, ChevronRight, Info, CalendarDays, X
 } from "lucide-react";
-
-const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-];
-
-const DAYS_OF_WEEK = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-function getDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year, month) {
-  const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1;
-}
-
-function formatDateStr(year, month, day) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
+import {
+  MONTH_NAMES, DAYS_OF_WEEK, getDaysInMonth,
+  getFirstDayOfMonth, formatDateStr, isWeekendByDayOfWeek,
+  isPastDateByYMD, navigateMonth
+} from "../../../shared/utils/calendar";
 
 const MAX_REASON_LENGTH = 250;
 
@@ -145,31 +130,20 @@ export function AppointmentForm({ onSuccess, onClose }) {
   };
 
   const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    const { year, month } = navigateMonth(currentYear, currentMonth, -1);
+    setCurrentYear(year);
+    setCurrentMonth(month);
   };
 
   const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    const { year, month } = navigateMonth(currentYear, currentMonth, 1);
+    setCurrentYear(year);
+    setCurrentMonth(month);
   };
 
-  const isWeekend = (dayOfWeek) => dayOfWeek === 0 || dayOfWeek === 6;
+  const isWeekend = (dayOfWeek) => isWeekendByDayOfWeek(dayOfWeek);
 
-  const isPastDate = (year, month, day) => {
-    const date = new Date(year, month, day);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return date < todayStart;
-  };
+  const isPastDate = (year, month, day) => isPastDateByYMD(year, month, day);
 
   const getCalendarDays = () => {
     const daysInMonth = getDaysInMonth(currentYear, currentMonth);

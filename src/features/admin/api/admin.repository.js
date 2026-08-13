@@ -108,7 +108,7 @@ export class AdminRepository {
 
         await this.logAction({
             userId: adminId,
-            action: 'update_user',
+            action: 'UPDATE_USER',
             entityType: 'user',
             entityId: userId,
             oldData,

@@ -122,8 +122,22 @@ export function useTokenValidation() {
 
 // ============== SECURITY LOGGING ==============
 
-export async function logSecurityEvent() {
-    return;
+export async function logSecurityEvent(eventType, details = {}) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || null;
+
+        await supabase.from("security_logs").insert({
+            event_type: eventType,
+            user_id: userId,
+            details: details,
+            ip_address: null,
+            user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+            created_at: new Date().toISOString(),
+        });
+    } catch {
+        // Silently fail — security logging should never break the app
+    }
 }
 
 // ============== INPUT SANITIZATION ==============

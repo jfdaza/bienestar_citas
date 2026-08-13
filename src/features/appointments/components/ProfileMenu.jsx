@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { 
-  User, Mail, LogOut, ChevronDown, 
+import {
+  User, Mail, LogOut, ChevronDown,
   Settings, HelpCircle, Shield, Edit3, X, Save, Phone
 } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
+import { toast } from "sonner";
 
 function EditProfileModal({ profile, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -256,9 +258,24 @@ export function ProfileMenu({ profile, signOut, totalAppointments }) {
   const userInitial = userName.charAt(0).toUpperCase();
 
   const handleSaveProfile = async (formData) => {
-    // In a real app, this would call an API to update the profile
-    setSavedProfile({ ...displayProfile, ...formData });
-    setShowEditModal(false);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: formData.full_name,
+          phone: formData.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
+
+      if (error) throw error;
+
+      setSavedProfile({ ...displayProfile, ...formData });
+      setShowEditModal(false);
+      toast.success("Perfil actualizado correctamente");
+    } catch (err) {
+      toast.error(err.message || "Error al guardar el perfil");
+    }
   };
 
   return (

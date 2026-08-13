@@ -134,7 +134,7 @@ export function useAppointments() {
       );
       return { success: true };
     } catch (err) {
-      toast.error("Error actualizando cita");
+      toast.error(err.message || "Error actualizando cita");
       return { success: false, error: err.message };
     } finally {
       setStatus(STATUS.IDLE);
